@@ -12,7 +12,7 @@ This project demonstrates the use of Apache Spark for solving various exercises 
 ### Steps to Run the Project
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Maney381/spark-test-project.git
    cd spark-test-project
    ```
 2. Build the project:

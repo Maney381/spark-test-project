@@ -25,7 +25,7 @@ object Exercise1 {
     .read
     .option("quote", "\"")
     .option("delimiter", ",")
-    .csv(s"data/students.csv")
+    .csv(s"data/exercise1/students.csv")
     .toDF("ID", "Name", "Password", "Gene")
     .as[(String, String, String, String)] //this converts dataFrame to a Dataset of Tuples or case classes
 
@@ -33,7 +33,7 @@ object Exercise1 {
     .read
     .option("quote", "\"")
     .option("delimiter", ",")
-    .csv(s"data/students.csv")
+    .csv(s"data/exercise1/students.csv")
     .toDF("ID", "Name", "Password", "Gene")
     .as[(String, String, String, String)]
 

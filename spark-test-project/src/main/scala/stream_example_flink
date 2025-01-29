@@ -1,0 +1,54 @@
+import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.streaming.api. *;
+import org.apache.flink.util.Collector;
+import java.util.Date;
+
+
+public class SensorProcessing {
+
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();  //creates stream execution environment
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);                          // sets time characteristic to EventTime; timestamp embedded in data instead of Processing time when Flink receives data
+
+        DataStream<Tuple3<Integer, Date, Float>> readings = env
+            .socketTextStream("localhost", 9999)        // connects to a socket on LocalHost at Port 9999; data is read at continous stream of strings
+            .map(SensorProcessing::lineToReading)       //lineToReading method converts each line (raw string) into a Tuple3<Integer, Date, Float>
+            .assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Integer, Date, Float>>() { //Extracts the timestamp (as a long) from the second field (Date object) of the tuple. Necessary for event-time processing. Watermarks:Marks the progress of event time to handle late or out-of-order data. 
+                @Override   // indicates that a method overrides a method from its superclass or interface
+                public long extractAscendingTimestamp(Tuple3<Integer, Date, Float> element) {               // AscendingTimestampExtractor assumes events arrive in order.
+                    return element.f1.getTime();
+                }
+            });
+
+        readings
+            .filter(r -> (r.f2 > -50.0f) && (r.f2 < 50.0f))     // Filters out readings with temperatures outside the range [-50.0, 50.0].
+            .keyBy(r -> r.f0)                                   // Groups readings by the sensor ID (f0), ensuring readings from the same sensor are processed together.
+            .timeWindow(Time.days(1), Time.days(1))             // Defines a tumbling window of 1 day: Window size: 1 day. No overlap (since the slide is equal to the size).
+            .apply(new StandingQuery())                         // custom window function to process readings within the window.
+            .print();                                           // Output results to console
+        
+        env.execute("Sensor Processing");                       // Triggers the flink job execution
+    }
+
+    public static class StandingQuery implements WindowFunction //Purpose: For each window, checks if any temperature exceeds 30.0°C. If found, emits a tuple with the sensor ID and timestamp of the reading.
+        <Tuple3<Integer, Date, Float>,  // Input Type
+        Tuple2<Integer, Date>,          // Output Type
+        Integer,                        // Key Type (Group Key)
+        TimeWindow>                     // WindowType
+        {                   
+        @Override       // indicates that a method overrides a method from its superclass or interface
+        public void apply(Integer key, TimeWindow window,
+                Iterable<Tuple3<Integer, Date, Float>> values, //Input: IntegerKey, TimeWindow window, Iterable<Tuple3<...>> values: All readings in window for given key
+                Collector<Tuple2<Integer, Date>> out) {        //Output: Sensor ID and timestamp
+
+            for (Tuple3<Integer, Date, Float> reading : values) {  // For each window,
+                if (reading.f2 > 30.0f) {                          // checks if any temperature exceeds 30.0°C
+                    out.collect(new Tuple2<>(key, reading.f1));    // if found: emits a tuple with the sensor ID and timestamp of the reading 
+                return;
+                }
+            }
+        }
+    }
+    // Reading(SensorID, Timestamp, Temperature)
+    private static Tuple3<Integer, Date, Float> lineToReading(String line) {...} //Parses a raw input string into a tuple
+}

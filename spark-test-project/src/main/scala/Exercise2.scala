@@ -11,7 +11,7 @@ object Exercise2 {
     spark.sparkContext.setLogLevel("ERROR")
     println("Spark session started...")
 
-
+ 
     // 2. Read CSV into DataFrame, specifying options
     // val studentsDF = spark.read
     //  .option("quote", "\"")
